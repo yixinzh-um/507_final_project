@@ -3,22 +3,86 @@ import json
 from bs4 import BeautifulSoup
 import sqlite3
 from flask import Flask, render_template, request
+
 app= Flask(__name__)
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/hello/nm')
-def hello_name(nm):
-    return render_template('hello.html', name=nm)
+@app.route('/department')
+def choose_department():
+    dep_lst,types_lst=get_departments_types()
+    lst=zip(dep_lst, types_lst)
+    return render_template('department.html',lst=lst)
+
+@app.route('/product',methods=['POST'])
+def choose_product():
+    type=request.form['type']
+    product_lst=get_products(type)
+    return render_template('product.html',product_lst=product_lst)
+
+@app.route('/detail',methods=['POST'])
+def choose_product():
+    type=request.form['product']
+    product_lst=get_products(type)
+    return render_template('product.html',product_lst=product_lst)
+
+# def get_results(sort_by, sort_order):
+#     conn = sqlite3.connect('OP.sqlite')
+#     cur = conn.cursor()
+    
+#     if sort_by == 'rating':
+#         sort_column = 'Rating'
+#     else:
+#         sort_column = 'CocoaPercent'
+
+#     q = f'''
+#         SELECT SpecificBeanBarName, {sort_column}
+#         FROM product
+#         ORDER BY {sort_column} {sort_order}
+#         LIMIT 10
+#     '''
+#     results = cur.execute(q).fetchall()
+#     conn.close()
+#     return results
+
+# @app.route('/departments', methods=['POST'])
+# def results():
+#     sort_by = request.form['sort']
+#     sort_order = request.form['dir']
+#     results = get_results(sort_by, sort_order)
+#     return render_template('results.html', 
+#         sort=sort_by, results=results)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 base_url="https://www.optimumnutrition.com/"
 CACHE_FILENAME='cache.txt'
 
 #create a database
-conn = sqlite3.connect('OP.sqlite')
+conn = sqlite3.connect('OP.sqlite',check_same_thread=False)
 cur = conn.cursor()
 
 ############################################## Caching & Request ######################################################
@@ -123,7 +187,7 @@ def get_departments_types():
         dep_id = cur.execute(f"SELECT department_id FROM Departments WHERE name='{dep}'").fetchall()[0][0]
         for i in a[1:]:
             type=i.text
-            cur.execute(Insert_types,[type,dep_id])
+            cur.execute(Insert_types,[type,dep_id,type])
 
     dep_print(product_dep_lst,product_types_lst)
     return product_dep_lst,product_types_lst
@@ -144,6 +208,9 @@ def get_products(product_type):
     product_lst: list
         a list contains product detail dictionaries
     '''
+    
+    product_type=BeautifulSoup(product_type, 'html.parser')
+    product_type=product_type.find_all('a')[0]
     html=make_request_with_cache(base_url+product_type['href'])
     soup=BeautifulSoup(html, 'html.parser')
     products=soup.find_all('div', class_='views-row')
@@ -162,107 +229,107 @@ def get_products(product_type):
         else:
             dict['rating']=""
         product_lst.append(dict)
-    product_print(product_type,product_lst)
+    # product_print(product_type,product_lst)
     return product_lst
 
 ############################################## Pretty Print ######################################################
 
-def dep_print(product_dep_lst,product_types_lst):
-    ''' Print the departments with indexes and following types
+# def dep_print(product_dep_lst,product_types_lst):
+#     ''' Print the departments with indexes and following types
     
-    Parameters
-    ----------
-    product_dep_lst: list
-        A list of department anchor tag element
-    product_types_lst
-        A list of lists of type anchor tag element
+#     Parameters
+#     ----------
+#     product_dep_lst: list
+#         A list of department anchor tag element
+#     product_types_lst
+#         A list of lists of type anchor tag element
 
-    Returns
-    -------
-    None
-    '''
-    print("-----------------------------")
-    print(f"List of product departments")
-    print("-----------------------------")
-    idx=0
-    for d,t in zip(product_dep_lst,product_types_lst):
-        print("")
-        idx +=1
-        print(f'[{idx}] {d.text}')
-        for i in t:
-            print('  |',i.text)
+#     Returns
+#     -------
+#     None
+#     '''
+#     print("-----------------------------")
+#     print(f"List of product departments")
+#     print("-----------------------------")
+#     idx=0
+#     for d,t in zip(product_dep_lst,product_types_lst):
+#         print("")
+#         idx +=1
+#         print(f'[{idx}] {d.text}')
+#         for i in t:
+#             print('  |',i.text)
 
-def type_print(product_dep,product_type_lst):
-    ''' Print the a department and its following types with indexes.
+# def type_print(product_dep,product_type_lst):
+#     ''' Print the a department and its following types with indexes.
     
-    Parameters
-    ----------
-    product_dep: anchor tag element
-        A department 
-    product_type_lst
-        A list of type anchor tag element in one department
+#     Parameters
+#     ----------
+#     product_dep: anchor tag element
+#         A department 
+#     product_type_lst
+#         A list of type anchor tag element in one department
 
-    Returns
-    -------
-    None
-    '''
-    idx=0
-    print("----------------------------------")
-    print(f"List of product types in {product_dep.text}")
-    print("----------------------------------")
-    for a in product_type_lst:
-        idx += 1
-        print(f'[{idx}]{a.text}')
-    print("")
+#     Returns
+#     -------
+#     None
+#     '''
+#     idx=0
+#     print("----------------------------------")
+#     print(f"List of product types in {product_dep.text}")
+#     print("----------------------------------")
+#     for a in product_type_lst:
+#         idx += 1
+#         print(f'[{idx}]{a.text}')
+#     print("")
     
-def product_print(product_type,product_lst):
-    ''' Print the a product type and its following products with indexes.
+# def product_print(product_type,product_lst):
+#     ''' Print the a product type and its following products with indexes.
     
-    Parameters
-    ----------
-    product_type: anchor tag element
-        A product type
-    product_lst:
-        A list of dictionaries of product detail information in one type
+#     Parameters
+#     ----------
+#     product_type: anchor tag element
+#         A product type
+#     product_lst:
+#         A list of dictionaries of product detail information in one type
 
-    Returns
-    -------
-    None
-    '''
-    print("")
-    print("----------------------------------")
-    print(f"List of products in {product_type.text}")
-    print("----------------------------------")
-    idx=0
-    for p in product_lst:
-        idx += 1
-        name=p['name']
-        print (f'[{idx}] {name}')
+#     Returns
+#     -------
+#     None
+#     '''
+#     print("")
+#     print("----------------------------------")
+#     print(f"List of products in {product_type.text}")
+#     print("----------------------------------")
+#     idx=0
+#     for p in product_lst:
+#         idx += 1
+#         name=p['name']
+#         print (f'[{idx}] {name}')
 
 
-def detail_print(product_lst,product_i):
-    '''choose a product by index 
-    Pretty prints raw result
+# def detail_print(product_lst,product_i):
+#     '''choose a product by index 
+#     Pretty prints raw result
     
-    Parameters
-    ----------
-    product_lst:list
-        a list contains product detail dictionaries
-    product_i:int
-        an integer the user chooses
+#     Parameters
+#     ----------
+#     product_lst:list
+#         a list contains product detail dictionaries
+#     product_i:int
+#         an integer the user chooses
 
-    Returns
-    -------
-    None
-    '''
-    p=product_lst[product_i-1]
-    print("-------------------------------------------------------------------")
-    for i in p:
-        attr= '{:^22}'.format('{:.20}'.format(str(i)))
-        value = '{:^42}'.format('{:.40}'.format(str(p[i])))
+#     Returns
+#     -------
+#     None
+#     '''
+#     p=product_lst[product_i-1]
+#     print("-------------------------------------------------------------------")
+#     for i in p:
+#         attr= '{:^22}'.format('{:.20}'.format(str(i)))
+#         value = '{:^42}'.format('{:.40}'.format(str(p[i])))
         
-        print ("|"+attr+"|"+value+"|")
-    print("-------------------------------------------------------------------")
+#         print ("|"+attr+"|"+value+"|")
+#     print("-------------------------------------------------------------------")
 
 ############################################## Input Validation ######################################################
 
@@ -334,8 +401,9 @@ Insert_products="""
 """
 
 Insert_types="""INSERT INTO Types ('name','department_id')
-    
-                        VALUES (?,?)
+                        SELECT ?,?
+                        WHERE NOT EXISTS (SELECT * FROM Types WHERE name=?)  
+
                         """
 
 
@@ -484,13 +552,13 @@ if __name__ == "__main__":
     app.run(debug=True)
     #create the table
 
-    # cur.execute("DROP TABLE IF EXISTS departments")
-    # cur.execute("DROP TABLE IF EXISTS types")
-    # cur.execute("DROP TABLE IF EXISTS products")
-    # cur.execute(create_departments)
-    # cur.execute(create_types)
-    # cur.execute(create_products)
-
+    cur.execute("DROP TABLE IF EXISTS departments")
+    cur.execute("DROP TABLE IF EXISTS types")
+    cur.execute("DROP TABLE IF EXISTS products")
+    cur.execute(create_departments)
+    cur.execute(create_types)
+    cur.execute(create_products)
+    
 
     # product_dep_lst,product_types_lst=get_departments_types()
     # #start the loop

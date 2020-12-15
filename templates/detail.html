@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF8"/>
+    <title>Optimum Nutrition Products</title>
+</head>
+<body>
+    <header>
+        <h1>Optimum Nutrition Products</h1>
+        <h2>Detail</h2>
+        <h2>{{product.name}}</h2>
+    </header>
+    
+    <br>
+      
+    {% if product_lst %}
+        <form action='/type' method='POST'>
+        <p>
+        {% for product in product_lst %}
+            <input type='radio' name='type' 
+            value={{product}} > {{product.name}} <br/>
+            
+            <br>
+        {% endfor %}
+            <input type="submit" value="Submit">
+        </p>
+        </form>
+    {% else %}
+        <p>There are no product in the database.</p>
+    {% endif %}
+      
+      
+
+</body>
+</html>
