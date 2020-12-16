@@ -5,32 +5,37 @@
     <title>Optimum Nutrition Products</title>
 </head>
 <body>
+    <nav>   
+        <a href="/">Home</a>
+        <a href="/department">Department</a>
+        <a href="/products">Products</a>
+        <a href="/cart">Cart</a>
+    </nav>
     <header>
         <h1>Optimum Nutrition Products</h1>
-        <h2>Product</h2>
-        <h2>{{type}}</h2>
+        <h2>Product under <i>{{type}}</i> </h2>
     </header>
     
     <br>
       
     {% if product_lst %}
-        <form action='/type' method='POST'>
+        <form action='/cart' method='POST'>
         <table>
         <tr>
             <th>Name</th>
-            <th>Lowest_price</th>
+            <th>Price From</th>
             <th>Rating</th>
-            <th>Reason_to_use</th>
+            <th>Reason to use</th>
         </tr>
         {% for product in product_lst %}
         <tr>
             <td>
-                <input type='radio' name='product' 
-                value={{product}} > {{product.name}} <br/>
+                <input type='checkbox' name='product' 
+                value={{product.id}} > {{product.name}} <br/>
             </td>
 
             <td>
-                ${{product.lowest_price}}
+                ${{product.price_from}}
             </td>
             <td>
                 {{product.rating}}
@@ -40,7 +45,7 @@
             </td>
         </tr>    
         {% endfor %}
-            <input type="submit" value="Submit">
+            <input type="submit" value="Add to Cart"> 
         </p>
         </form>
     {% else %}

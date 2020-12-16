@@ -12,41 +12,206 @@ def index():
 
 @app.route('/department')
 def choose_department():
-    dep_lst,types_lst=get_departments_types()
+    dep_lst,types_lst=get_dep_types()
     lst=zip(dep_lst, types_lst)
     return render_template('department.html',lst=lst)
 
-@app.route('/product',methods=['POST'])
-def choose_product():
+@app.route('/type/<type>',methods=['POST'])
+def choose_product(type):
     type=request.form['type']
-    product_lst=get_products(type)
-    return render_template('product.html',product_lst=product_lst)
+    product_lst=get_products_by_type(type)
+    return render_template('product.html',product_lst=product_lst,type=type)
 
-@app.route('/detail',methods=['POST'])
-def choose_product():
-    type=request.form['product']
-    product_lst=get_products(type)
-    return render_template('product.html',product_lst=product_lst)
+@app.route('/products', methods=['GET','POST'])
+def products_all():
+    sort_by='Category'
+    sort_order='ASC'
+    try:
+        sort_by = request.form['sort']
+        sort_order = request.form['dir']
+    except:
+        pass
+    product_lst=get_all_products(sort_by, sort_order)
+    return render_template('products_all.html',product_lst=product_lst,sort_by=sort_by,sort_order=sort_order)
 
-# def get_results(sort_by, sort_order):
+
+
+@app.route('/cart', methods=['GET','POST'])
+def cart():
+
+    sort_by='Category'
+    sort_order='ASC'
+    try:
+        sort_by = request.form['sort']
+        sort_order = request.form['dir']
+    except:
+        pass
+
+    cart_lst=[]
+
+    product_id_lst=request.form.getlist('product')
+    drop_product_id_lst=request.form.getlist('cart')
+    
+    if product_id_lst:
+        write_cart(product_id_lst)
+    if drop_product_id_lst:
+        drop_cart(drop_product_id_lst)
+
+    print(drop_product_id_lst)
+    cart_lst=read_cart(sort_by, sort_order)
+    return render_template('cart.html',product_lst=cart_lst,sort_by=sort_by,sort_order=sort_order)
+
+def write_cart(product_id_lst):
+    conn = sqlite3.connect('OP.sqlite')
+    cur = conn.cursor()
+    ##read from table products
+    product_id_lst=[f"'{i}'" for i in product_id_lst]
+    products_id=",".join(product_id_lst)
+    q = f'''
+        SELECT *
+        FROM Products
+        WHERE product_id in ({products_id})
+    '''
+    product_lst = cur.execute(q).fetchall()
+    ##write to table cart
+    for i in product_lst:
+        lst=[i[1],i[0],i[0]]  
+        cur.execute(Insert_cart,lst)
+    conn.commit()
+    conn.close()
+
+def drop_cart(drop_product_id_lst):
+    conn = sqlite3.connect('OP.sqlite')
+    cur = conn.cursor()
+    ##delete row in table products
+    product_id_lst=[f"{i}" for i in drop_product_id_lst]
+    products_id=",".join(product_id_lst)
+    q = f'''
+        DELETE 
+        FROM cart
+        WHERE product_id in ({products_id})
+    '''
+    cur.execute(q).fetchall()
+    conn.commit()
+    conn.close()
+
+
+def read_cart(sort_by, sort_order):
+    conn = sqlite3.connect('OP.sqlite')
+    cur = conn.cursor()
+    ##read from table cart
+    if sort_by == 'Rating':
+        sort_column = 'rating'
+    elif sort_by=='Price':
+        sort_column='price_from'
+    elif sort_by == 'Category':
+        sort_column = 'type_id'
+
+
+    q = f'''
+        SELECT products.*, types.name as type
+        FROM cart
+        JOIN Products on cart.product_id=products.product_id
+        JOIN types ON types.type_id=products.type_id
+        ORDER BY {sort_column} {sort_order} 
+        NULLS LAST
+    '''
+    print(q)
+    carts = cur.execute(q).fetchall()
+
+    cart_lst=[]
+    for i in carts:
+        cart_lst.append(product(i[0],i[1],i[2],i[3],i[4],i[5],i[-1]))
+        
+
+    conn.commit()
+    conn.close()
+    return cart_lst
+
+
+def get_dep_types():
+    conn = sqlite3.connect('OP.sqlite')
+    cur = conn.cursor()
+    q1 = f'''
+        SELECT name
+        FROM Departments 
+    '''
+    dep_lst = cur.execute(q1).fetchall()
+    types_lst=[]
+
+    for i in range(len(dep_lst)):
+        q2=f"""
+        SELECT name
+        FROM Types
+        WHERE department_id='{i+1}'
+        """
+        type_lst = cur.execute(q2).fetchall()
+        type_lst=[i[0] for i in type_lst]
+        types_lst.append(type_lst)
+
+    conn.close()
+    return dep_lst,types_lst
+
+def get_products_by_type(type):
+    conn = sqlite3.connect('OP.sqlite')
+    cur = conn.cursor()
+    q = f'''
+        SELECT * FROM Products 
+        JOIN Types ON Products.type_id=Types.type_id
+        WHERE Types.name='{type}'
+    '''
+    product_lst = cur.execute(q).fetchall()
+    lst=[]
+    for p in product_lst:
+        product_object=product(p[0],p[1], p[2],p[3],p[4],p[5])
+        lst.append(product_object)
+    conn.close()
+    return lst
+
+def get_all_products(sort_by, sort_order):
+    conn = sqlite3.connect('OP.sqlite')
+    cur = conn.cursor()
+
+    if sort_by == 'Rating':
+        sort_column = 'rating'
+    elif sort_by=='Price':
+        sort_column='price_from'
+    elif sort_by == 'Category':
+        sort_column = 'type_id'
+
+    q = f'''
+        SELECT Products.*, types.name as type 
+        FROM Products
+        JOIN types ON types.type_id=products.type_id
+        ORDER BY {sort_column} {sort_order} 
+        NULLS LAST
+    '''
+    product_lst = cur.execute(q).fetchall()
+    lst=[]
+    for p in product_lst:
+        product_object=product(p[0],p[1], p[2],p[3],p[4],p[5],p[-1])
+        lst.append(product_object)
+    conn.close()
+    return lst
+
+# def drop_products():
 #     conn = sqlite3.connect('OP.sqlite')
 #     cur = conn.cursor()
-    
-#     if sort_by == 'rating':
-#         sort_column = 'Rating'
-#     else:
-#         sort_column = 'CocoaPercent'
 
 #     q = f'''
-#         SELECT SpecificBeanBarName, {sort_column}
-#         FROM product
-#         ORDER BY {sort_column} {sort_order}
-#         LIMIT 10
+#         SELECT Products.*, types.name as type 
+#         FROM Products
+#         JOIN types ON types.type_id=products.type_id
+#         ORDER BY {sort_column} {sort_order} 
+#         NULLS LAST
 #     '''
-#     results = cur.execute(q).fetchall()
+#     product_lst = cur.execute(q).fetchall()
+#     lst=[]
+#     for p in product_lst:
+#         product_object=product(p[1], p[2],p[3],p[4],p[5],p[-1])
+#         lst.append(product_object)
 #     conn.close()
-#     return results
-
+#     return lst
 # @app.route('/departments', methods=['POST'])
 # def results():
 #     sort_by = request.form['sort']
@@ -63,28 +228,10 @@ def choose_product():
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 base_url="https://www.optimumnutrition.com/"
 CACHE_FILENAME='cache.txt'
-
-#create a database
 conn = sqlite3.connect('OP.sqlite',check_same_thread=False)
 cur = conn.cursor()
-
 ############################################## Caching & Request ######################################################
 def open_cache():
     ''' Opens the cache file if it exists and loads the JSON into
@@ -143,7 +290,6 @@ def make_request_with_cache(url):
     -------
     result: html string
     '''
-
     dict=open_cache()
     if url not in dict:
         print("Fetching")
@@ -158,9 +304,9 @@ def make_request_with_cache(url):
 
 ############################################## BeautifulSoup ######################################################
 
-def get_departments_types():
+def wirte_to_database():
     ''' Get the product department anchor tag element list and type anchor tag  element list from html
-    Print the department names with index and following type names
+    Write departments and types into the table Departments and Types in database.
     
     Parameters
     ----------
@@ -171,28 +317,36 @@ def get_departments_types():
     product_dep_lst: list
     product_types_lst :list
     '''
+
+    cur.execute("DROP TABLE IF EXISTS departments")
+    cur.execute("DROP TABLE IF EXISTS types")
+    cur.execute("DROP TABLE IF EXISTS products")
+    cur.execute("DROP TABLE IF EXISTS cart")
+    cur.execute(create_departments)
+    cur.execute(create_types)
+    cur.execute(create_products)
+    cur.execute(create_cart)
+
     html=make_request_with_cache(base_url)
     soup=BeautifulSoup(html, 'html.parser')
     menu=soup.find_all('ul',class_='menu-text')[0].find_all('li',recursive=False)
-    product_dep_lst=[]
-    product_types_lst=[]
     for i in menu:
         a=i.find_all('a')
-        product_dep_lst.append(a[0])        
-        product_types_lst.append(a[1:])
         # write value to table departments & types
         dep=a[0].text
+        
         cur.execute(Insert_departments,[dep,dep])
-        conn.commit()
         dep_id = cur.execute(f"SELECT department_id FROM Departments WHERE name='{dep}'").fetchall()[0][0]
         for i in a[1:]:
             type=i.text
             cur.execute(Insert_types,[type,dep_id,type])
+            type_id=cur.execute(f"SELECT type_id FROM Types WHERE name='{type}'").fetchall()[0][0]
+            product_lst=get_products(i)
+            insert_tb_products(product_lst,dep_id,type_id)
+    conn.commit()
+    conn.close()
 
-    dep_print(product_dep_lst,product_types_lst)
-    return product_dep_lst,product_types_lst
-
-       
+     
 
 # get the products detail information from html#
 def get_products(product_type):
@@ -206,31 +360,53 @@ def get_products(product_type):
     Returns
     -------
     product_lst: list
-        a list contains product detail dictionaries
+        a list contains product objects
     '''
-    
-    product_type=BeautifulSoup(product_type, 'html.parser')
-    product_type=product_type.find_all('a')[0]
+
     html=make_request_with_cache(base_url+product_type['href'])
     soup=BeautifulSoup(html, 'html.parser')
-    products=soup.find_all('div', class_='views-row')
-    product_lst=[]
+    products=soup.find_all('div', class_='views-row')[1:]
+    lst=[]
     for p in products:
+        
         dict={}
         a=p.contents[1].contents[1]
-        name=a.find_all('h4')[0].text.strip()
-        dict['name']=name
+        # name=a.find_all('h4')[0].text.strip()
+        # reason_to_use=a.find_all('div',class_="field--name-field-reason-to-use-product")[0].text.strip()
+        # price_from=float(a.find_all('span', class_='acq-commerce-price')[0].contents[2].strip())
+        # url=a['href']
+        # rating_div=a.find_all('div', class_='pr-snippet-rating-decimal')
+        # if rating_div:
+        #     rating=float(rating_div[0].text.strip())
+        # else:
+        #     rating=None
+        # product_object=product(name, reason_to_use, price_from, url, rating)
+        # lst.append(product_object)
+        # print(a.find_all('h4'))
+
+        dict['name']=a.find_all('h4')[0].text.strip()
         dict['reason_to_use']=a.find_all('div',class_="field--name-field-reason-to-use-product")[0].text.strip()
-        dict['lowest_price']=float(a.find_all('span', class_='acq-commerce-price')[0].contents[2].strip())
+        dict['price_from']=float(a.find_all('span', class_='acq-commerce-price')[0].contents[2].strip())
         dict['url']=a['href']
         rating_div=a.find_all('div', class_='pr-snippet-rating-decimal')
         if rating_div:
             dict['rating']=float(rating_div[0].text.strip())
         else:
-            dict['rating']=""
-        product_lst.append(dict)
-    # product_print(product_type,product_lst)
-    return product_lst
+            dict['rating']=None
+        lst.append(dict)
+    return lst
+    
+class product:
+    def __init__(self,id,name, reason_to_use, price_from, url, rating,type=None):    
+        self.id=id
+        self.name=name
+        self.reason_to_use=reason_to_use
+        self.price_from=price_from
+        self.url=url
+        self.rating=rating
+        self.type = type
+
+
 
 ############################################## Pretty Print ######################################################
 
@@ -333,31 +509,31 @@ def get_products(product_type):
 
 ############################################## Input Validation ######################################################
 
-def valid(num,lst):
-    '''Validate the input.
-        If the input is invalid, it will print the error message.
+# def valid(num,lst):
+#     '''Validate the input.
+#         If the input is invalid, it will print the error message.
     
-    Parameters
-    ----------
-    num:int
-        An integer the user enters.
-    lst: list
-        The list of deparments/types/products to choose
-    Returns
-    -------
-    num:int
-        An valid integer the user chooses
-    '''
-    if num == 'exit':
-            exit(0)
-    elif num.isnumeric():
-        num=int(num)
-        if num >0 and num <= len(lst):
-            return num
-        else:
-            print('[Error] Invalid input \n\n ----------------------------------')            
-    else:
-        print('[Error] Invalid input \n\n ----------------------------------')
+#     Parameters
+#     ----------
+#     num:int
+#         An integer the user enters.
+#     lst: list
+#         The list of deparments/types/products to choose
+#     Returns
+#     -------
+#     num:int
+#         An valid integer the user chooses
+#     '''
+#     if num == 'exit':
+#             exit(0)
+#     elif num.isnumeric():
+#         num=int(num)
+#         if num >0 and num <= len(lst):
+#             return num
+#         else:
+#             print('[Error] Invalid input \n\n ----------------------------------')            
+#     else:
+#         print('[Error] Invalid input \n\n ----------------------------------')
 
 ############################################## Database ######################################################
 
@@ -381,20 +557,30 @@ create_products="""
         "product_id" INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
         "name" TEXT NOT NULL UNIQUE,
         "reason_to_use" TEXT NOT NULL,
-        "lowest_price" NUMERIC NOT NULL,
+        "price_from" NUMERIC NOT NULL,
         "url" TEXT NOT NULL UNIQUE,
         "rating" NUMERIC,
         "department_id" INTEGER REFERENCES Departments(department_id),
         "type_id" INTEGER REFERENCES Departments(type_id)
     );
 """
+create_cart="""
+    CREATE TABLE IF NOT EXISTS "Cart" (
+        "cart_id" INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+        "name" TEXT NOT NULL UNIQUE,
+        "product_id" INTEGER REFERENCES products(product_id)
+    );
+"""
 
-# Insert_products=""" 
-#     INSERT INTO Products ('name','reason_to_use','lowest_price','url','rating','department_id','type_id')
-#     VALUES(?,?,?,?,?,?,?)
-# """
+
+Insert_cart=""" 
+    INSERT INTO Cart ('name','product_id')
+    SELECT ?,?
+    WHERE NOT EXISTS (select * from cart where product_id=?)
+"""
+
 Insert_products=""" 
-    INSERT INTO Products ('name','reason_to_use','lowest_price','url','rating','department_id','type_id')
+    INSERT INTO Products ('name','reason_to_use','price_from','url','rating','department_id','type_id')
     SELECT ?,?,?,?,?,?,?
     WHERE NOT EXISTS (select * from Products where name=?)
 
@@ -414,13 +600,13 @@ Insert_departments="""INSERT INTO Departments ('name')
     
 
    
-def insert_tb_products(product_lst,product_dep,product_type):
+def insert_tb_products(product_lst,dep_id,type_id):
     '''Insert the value to the table in database via sql
     
     Parameters
     ----------
     product_lst:list
-        a list contains product detail information dictionaries
+        a list contains product objects with detail information d
 
     Returns
     -------
@@ -429,11 +615,7 @@ def insert_tb_products(product_lst,product_dep,product_type):
 
     for p in product_lst:
         lst=list(p.values())
-        dep=product_dep.text
-        type=product_type.text
         name=lst[0]
-        dep_id=cur.execute(f"SELECT department_id FROM Departments WHERE name='{dep}'").fetchall()[0][0]
-        type_id=cur.execute(f"SELECT type_id FROM Types WHERE name='{type}'").fetchall()[0][0]
         lst.append(dep_id)
         lst.append(type_id)
         lst.append(name)
@@ -442,124 +624,18 @@ def insert_tb_products(product_lst,product_dep,product_type):
 
 
 
-############################################## Loop ######################################################
-
-def dep_choice_valid_or_exit():
-    '''Ask the user to choose a number of deparments or exit.
-        If the input is invalid, it will print the error message and ask for the input again.
-
-        Print the departments with indexes and following types.
-        Call the next step function to explore types.
-    
-    Parameters
-    ----------
-    None
-
-    Returns
-    -------
-    None
-    '''
-    while True: 
-        print("")
-        num=input('Enter a index of departments or "exit": ')
-        dep_i=valid(num,product_dep_lst)
-        if dep_i:
-            product_dep=product_dep_lst[dep_i-1]
-            product_type_lst=product_types_lst[dep_i-1]
-            type_print(product_dep,product_type_lst)
-            type_choice_valid_or_exit_or_back(product_dep,product_type_lst)
-        
-def type_choice_valid_or_exit_or_back(product_dep,product_type_lst):
-    '''Ask the user to choose a number of types or exit or back.
-        If the input is invalid, it will print the error message and ask for the input again.
-        If input is "back", back to the previous function to choose a department.
-        If input is a valid number,
-            Print the type with indexes.
-            Call the next step function to explore products.
-    
-    Parameters
-    ----------
-    product_dep: anchor tag element
-        A department 
-    product_type_lst
-        A list of type anchor tag element in one department
-
-    Returns
-    -------
-    None
-    '''
-
-    while True: 
-        print("")
-        num=input('Enter a index of types or "exit" or "back": ')
-        if num == 'back':
-            dep_print(product_dep_lst,product_types_lst)
-            dep_choice_valid_or_exit()
-        else:
-            type_i=valid(num,product_type_lst)
-            if type_i:
-                product_type=product_type_lst[type_i-1]
-                product_lst=get_products(product_type)
-                insert_tb_products(product_lst,product_dep,product_type)
-                product_choice_valid_or_exit_or_back(product_lst,product_type_lst,product_dep)
-                
-def product_choice_valid_or_exit_or_back(product_lst,product_type_lst,product_dep):
-    '''Ask the user to choose a number of products or exit or back.
-        If the input is invalid, it will print the error message and ask for the input again.
-        If input is "back", back to the previous function to choose a type.
-        If input is a valid number,
-            Print products with indexes.
-            Call the self function to explore products again.
-    
-    Parameters
-    ----------
-    product_lst:list
-        A list contains product detail dictionaries
-    product_dep: anchor tag element
-        A department 
-    product_type_lst
-        A list of type anchor tag element in one department
-    product_type
-        An anchor tag element in one department
-    Returns
-    -------
-    None
-    '''
-    while True:  
-        print("")
-        num=input('Enter a index of products or "exit" or "back": ')
-        if num == 'back':
-            type_print(product_dep,product_type_lst)
-            type_choice_valid_or_exit_or_back(product_dep,product_type_lst)
-        else:
-            product_i=valid(num,product_lst)
-            if product_i:
-                p=detail_print(product_lst,product_i)
-                product_choice_valid_or_exit_or_back(product_lst,product_type_lst,product_dep)
 
 
-
-
-
-
-
-
-    
 
 
 if __name__ == "__main__":
-    print('starting Flask app', app.name)
-    app.run(debug=True)
-    #create the table
-
-    cur.execute("DROP TABLE IF EXISTS departments")
-    cur.execute("DROP TABLE IF EXISTS types")
-    cur.execute("DROP TABLE IF EXISTS products")
-    cur.execute(create_departments)
-    cur.execute(create_types)
-    cur.execute(create_products)
     
 
+    # create the table
+    wirte_to_database()
+    get_dep_types()
+    print('starting Flask app', app.name)
+    app.run(debug=True)
     # product_dep_lst,product_types_lst=get_departments_types()
     # #start the loop
     # dep_choice_valid_or_exit()

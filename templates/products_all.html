@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF8"/>
+    <title>Optimum Nutrition Products</title>
+</head>
+<body>
+    <nav>   
+        <a href="/">Home</a>
+        <a href="/department">Department</a>
+        <a href="/products">Products</a>
+        <a href="/cart">Cart</a>
+    </nav>
+    <header>
+        <h1>Optimum Nutrition Products</h1>
+        <h2>Products all</h2>
+
+    </header>
+
+    <form id='sort' action='/products' method='POST'>
+    <select name='sort'>
+        <option value={{sort_by}}> {{sort_by}} </option>
+        {% if sort_by == 'Category' %}
+        <option value='Rating'> Rating </option>
+        <option value='Price'> Price </option>
+        {% endif %}
+        {% if sort_by == 'Rating' %}
+        <option value='Category'> Category </option>
+        <option value='Price'> Price </option>
+        {% endif %} 
+        {% if sort_by == 'Price' %}
+        <option value='Category'> Category </option>
+        <option value='Rating'> Rating </option>
+        {% endif %} 
+    </select>
+    <select name='dir' >
+        <option value={{sort_order}}> {{sort_order}} </option>
+        {% if sort_order == 'ASC' %}
+        <option value='DESC'> Desc </option>
+        {% endif %} 
+        {% if sort_order == 'DESC' %}
+        <option value='ASC'> Asc </option>
+        {% endif %} 
+    </select>
+    <input type="submit" value="Sort">
+    </form> 
+
+    <br>
+      
+    {% if product_lst %}
+        <form action='/cart' method='POST' id='products'>
+        <table>
+        <tr>
+            <th>Name</th>
+            <th>Price From</th>
+            <th>Rating</th>
+            <th>Type</th>
+        </tr>
+        {% for product in product_lst %}
+        <tr>
+            <td>
+                <input type='checkbox' name='product' 
+                value={{product.id}} > {{product.name}} 
+            </td>
+            
+            <td>
+                ${{product.price_from}}
+            </td>
+            <td>
+                {% if product.rating %}
+                {{product.rating}}
+                {% endif %}
+            </td>
+            <td>
+                {{product.type}}
+            </td>
+        </tr>    
+        {% endfor %}
+        </table>
+        <br>
+        <input type="submit" value="Add to Cart">
+        </form>
+    {% else %}
+        <p>There are no product in the database.</p>
+    {% endif %}
+      
+      
+
+</body>
+</html>
+
