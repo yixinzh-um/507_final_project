@@ -1,7 +1,9 @@
 The interaction is run by the flask
 
+
 Package:
 requests, BeautifulSoup, sqlite3, flask
+
 
 Instruction steps:
 1.Run "python app.py" in the console
