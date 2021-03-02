@@ -1,10 +1,14 @@
 **Website Scraping and Flask Application** 
 
 (Python, SQL, Flask, HTML)
-●	Extracted product information scraping from website and its inner page or cache. 
+●	Extracted product information scraping from website and its inner page or cache.
+
 ●	Transformed and loaded records into three tables into a relational database. 
+
 ●	Navigated users by navigation bar or the radio button of the department. 
+
 ●	Sorted lists by the dropdown menu of category, price, or rating. 
+
 ●	Added adding to cart function; display or delete selected products in cart page via a checkbox. 
 
 
