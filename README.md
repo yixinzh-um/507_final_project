@@ -1,6 +1,7 @@
 **Website Scraping and Flask Application** 
 
 (Python, SQL, Flask, HTML)
+
 ●	Extracted product information scraping from website and its inner page or cache.
 
 ●	Transformed and loaded records into three tables into a relational database. 
