@@ -14,12 +14,12 @@
 The interaction is run by the flask
 
 
-Package:
+**Package:**
 
 requests, BeautifulSoup, sqlite3, flask
 
 
-Instruction steps:
+**Instruction steps:**
 
 1.Run "python app.py" in the console
 
